@@ -219,22 +219,10 @@ document.addEventListener('DOMContentLoaded', function() {
       const column = document.createElement('div');
       column.className = 'day-column';
       
-      // Create header - special case for Thursday to include Friday
+      // Create header - just use the day text
       const header = document.createElement('div');
       header.className = 'day-header';
-      
-      if (day.includes('Thursday')) {
-        // Check if we have Friday events
-        const hasFridayEvents = dayEvents.some(event => event.Date.includes('Friday'));
-        if (hasFridayEvents) {
-          header.textContent = day + ' & Friday, November 21';
-        } else {
-          header.textContent = day;
-        }
-      } else {
-        header.textContent = day;
-      }
-      
+      header.textContent = day;
       column.appendChild(header);
       
       // Create content container
@@ -258,12 +246,12 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Add events
       dayEvents.forEach(event => {
-        // Add a divider if we're transitioning to Friday events
+        // Add a Friday header if we're transitioning to Friday events
         if (lastDate !== event.Date && lastDate !== '' && event.Date.includes('Friday')) {
-          const divider = document.createElement('div');
-          divider.className = 'day-divider';
-          divider.textContent = 'Friday, November 21';
-          content.appendChild(divider);
+          const fridayHeader = document.createElement('div');
+          fridayHeader.className = 'day-header-inner';
+          fridayHeader.textContent = 'Friday, November 21';
+          content.appendChild(fridayHeader);
         }
         
         const eventEl = createEventElement(event);
