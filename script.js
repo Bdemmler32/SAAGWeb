@@ -516,12 +516,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Use html2canvas to capture the container
     html2canvas(pdfContainer, {
-      scale: 1.5, // Reduced scale for smaller file size while maintaining quality
+      scale: 2.5, // Higher scale for better text clarity
       useCORS: true,
       logging: false,
       width: 1100,
       imageTimeout: 0,
-      backgroundColor: '#ffffff'
+      backgroundColor: '#ffffff',
+      letterRendering: true, // Improve text rendering
+      allowTaint: true,
+      useCORS: true
     }).then(canvas => {
       // Remove the temporary container
       document.body.removeChild(pdfContainer);
@@ -554,9 +557,9 @@ document.addEventListener('DOMContentLoaded', function() {
       const offsetX = (11 - finalWidth) / 2;
       const offsetY = (8.5 - finalHeight) / 2;
       
-      // Add the image to the PDF with compression
-      const imgData = canvas.toDataURL('image/jpeg', 0.85); // Use JPEG with compression instead of PNG
-      pdf.addImage(imgData, 'JPEG', offsetX, offsetY, finalWidth, finalHeight);
+      // Add the image to the PDF with quality settings
+      const imgData = canvas.toDataURL('image/png', 1.0); // Use PNG for best text clarity
+      pdf.addImage(imgData, 'PNG', offsetX, offsetY, finalWidth, finalHeight, undefined, 'FAST');
       
       // Save the PDF
       pdf.save('schedule-at-a-glance.pdf');
