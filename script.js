@@ -284,31 +284,123 @@ document.addEventListener('DOMContentLoaded', function() {
     pdfContainer.style.padding = '20px';
     pdfContainer.style.backgroundColor = 'white';
     
-    // Remove filters container to exclude it from PDF
+    // Remove filters container (keep only the header)
     const filtersContainer = pdfContainer.querySelector('.filters-container');
     filtersContainer.innerHTML = '';
     filtersContainer.style.display = 'none';
     
-    // Add PDF-specific styles to the day sections
-    const daySections = pdfContainer.querySelectorAll('.day-section');
-    daySections.forEach(section => {
-      section.style.pageBreakInside = 'avoid';
-      section.style.breakInside = 'avoid';
-      
-      // Make day content a grid for PDF to show events side by side
-      const dayContent = section.querySelector('.day-content');
-      dayContent.style.display = 'grid';
-      dayContent.style.gridTemplateColumns = 'repeat(3, 1fr)';
-      dayContent.style.gap = '10px';
-      
-      // Ensure all events are showing
-      section.style.display = 'block';
+    // Clear current schedule grid
+    const scheduleGridPdf = pdfContainer.querySelector('#scheduleGrid');
+    scheduleGridPdf.innerHTML = '';
+    scheduleGridPdf.style.display = 'grid';
+    scheduleGridPdf.style.gridTemplateColumns = 'repeat(7, 1fr)';
+    scheduleGridPdf.style.gap = '10px';
+    
+    // Create columns for each day of the week
+    const uniqueDays = [...new Set(events.map(event => event.Date))];
+    
+    // Sort uniqueDays chronologically
+    uniqueDays.sort((a, b) => {
+      const dateA = new Date(a.split(',')[1] + ',' + a.split(',')[0]);
+      const dateB = new Date(b.split(',')[1] + ',' + b.split(',')[0]);
+      return dateA - dateB;
     });
     
-    // Make all ticketed events collapsed for PDF
-    const ticketedEvents = pdfContainer.querySelectorAll('.event.ticketed');
-    ticketedEvents.forEach(event => {
-      event.classList.remove('expanded');
+    // Group events by day
+    const eventsByDay = {};
+    uniqueDays.forEach(day => {
+      eventsByDay[day] = events.filter(event => event.Date === day);
+    });
+    
+    // Create a column for each day
+    uniqueDays.forEach(day => {
+      const dayEvents = eventsByDay[day];
+      
+      // Create day column
+      const dayColumn = document.createElement('div');
+      dayColumn.className = 'day-column';
+      dayColumn.style.width = '100%';
+      dayColumn.style.overflow = 'hidden';
+      dayColumn.style.display = 'flex';
+      dayColumn.style.flexDirection = 'column';
+      
+      // Create day header
+      const dayHeader = document.createElement('div');
+      dayHeader.className = 'day-header';
+      dayHeader.textContent = day.split(',')[0]; // Just the day name
+      dayHeader.style.backgroundColor = '#333';
+      dayHeader.style.color = 'white';
+      dayHeader.style.padding = '8px';
+      dayHeader.style.textAlign = 'center';
+      dayHeader.style.borderRadius = '5px 5px 0 0';
+      dayHeader.style.fontWeight = 'bold';
+      dayColumn.appendChild(dayHeader);
+      
+      // Create events container
+      const eventsContainer = document.createElement('div');
+      eventsContainer.className = 'day-events';
+      eventsContainer.style.backgroundColor = 'white';
+      eventsContainer.style.padding = '5px';
+      eventsContainer.style.borderRadius = '0 0 5px 5px';
+      eventsContainer.style.flexGrow = '1';
+      eventsContainer.style.display = 'flex';
+      eventsContainer.style.flexDirection = 'column';
+      eventsContainer.style.gap = '5px';
+      
+      // Sort events by time
+      dayEvents.sort((a, b) => {
+        return timeToMinutes(a["Time Start"]) - timeToMinutes(b["Time Start"]);
+      });
+      
+      // Add events to container
+      dayEvents.forEach(event => {
+        const timeCategory = getTimeCategory(event["Time Start"]);
+        const isTicketed = event["Ticketed Event"] === "TRUE";
+        
+        const eventEl = document.createElement('div');
+        eventEl.className = `event-pdf ${timeCategory}`;
+        eventEl.style.padding = '5px';
+        eventEl.style.borderRadius = '4px';
+        eventEl.style.fontSize = '10px';
+        eventEl.style.position = 'relative';
+        eventEl.style.marginBottom = '3px';
+        
+        // Set background color based on time category
+        if (timeCategory === 'morning') {
+          eventEl.style.backgroundColor = '#e6f4ff';
+          eventEl.style.border = '1px solid #b3d7ff';
+        } else if (timeCategory === 'afternoon') {
+          eventEl.style.backgroundColor = '#ffede6';
+          eventEl.style.border = '1px solid #ffcbb3';
+        } else {
+          eventEl.style.backgroundColor = '#f0e6ff';
+          eventEl.style.border = '1px solid #d6b3ff';
+        }
+        
+        // Add ticketed indicator if needed
+        if (isTicketed) {
+          eventEl.style.borderRightWidth = '8px';
+          eventEl.style.borderRightColor = '#4a7aff';
+        }
+        
+        // Event title
+        const titleEl = document.createElement('div');
+        titleEl.style.fontWeight = 'bold';
+        titleEl.style.marginBottom = '2px';
+        titleEl.textContent = event.Event;
+        
+        // Event time
+        const timeEl = document.createElement('div');
+        timeEl.style.fontSize = '9px';
+        timeEl.textContent = `${event["Time Start"]} - ${event["Time End"]}`;
+        
+        eventEl.appendChild(titleEl);
+        eventEl.appendChild(timeEl);
+        eventsContainer.appendChild(eventEl);
+      });
+      
+      dayColumn.appendChild(eventsContainer);
+      scheduleGridPdf.appendChild(dayColumn);
     });
     
     // Temporarily add the cloned container to the document for rendering
@@ -318,7 +410,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Use html2canvas to capture the container
     html2canvas(pdfContainer, {
-      scale: 1,
+      scale: 1.5, // Higher scale for better quality
       useCORS: true,
       logging: false
     }).then(canvas => {
@@ -334,8 +426,8 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       
       // Calculate the scaling ratio to fit the canvas to the PDF
-      const imgWidth = 11 - 1; // Landscape letter width minus margins
-      const imgHeight = 8.5 - 1; // Landscape letter height minus margins
+      const imgWidth = 11 - 0.5; // Landscape letter width minus margins
+      const imgHeight = 8.5 - 0.5; // Landscape letter height minus margins
       const canvasRatio = canvas.height / canvas.width;
       const pdfRatio = imgHeight / imgWidth;
       
