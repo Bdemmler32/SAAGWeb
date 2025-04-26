@@ -36,32 +36,6 @@ h1 {
   font-size: 14px;
 }
 
-/* Export Button */
-.export-btn {
-  position: absolute;
-  right: 0;
-  top: 0;
-  background-color: #4a7aff;
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-}
-
-.export-btn:hover {
-  background-color: #3a67d8;
-}
-
-.export-icon {
-  margin-right: 6px;
-  font-size: 16px;
-}
-
 /* Filters and Legend Combined */
 .filters-container {
   margin-bottom: 20px;
@@ -177,6 +151,17 @@ h1 {
 .day-content {
   padding: 15px;
   min-height: 100px;
+}
+
+.day-divider {
+  margin: 20px 0 15px 0;
+  padding: 8px;
+  background-color: #f0f0f0;
+  border-radius: 5px;
+  text-align: center;
+  font-weight: 600;
+  color: #555;
+  border-left: 4px solid #4a7aff;
 }
 
 .event {
@@ -315,17 +300,6 @@ h1 {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .header {
-    padding-top: 45px; /* Make room for export button */
-  }
-
-  .export-btn {
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-    top: 0;
-  }
-  
   .filters {
     flex-direction: column;
   }
@@ -363,10 +337,6 @@ h1 {
   .event:hover {
     transform: none;
     box-shadow: none;
-  }
-  
-  .export-btn {
-    display: none;
   }
   
   .tooltip {

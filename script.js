@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const scheduleGrid = document.getElementById('scheduleGrid');
   const noEventsMessage = document.getElementById('noEvents');
   const tooltip = document.getElementById('tooltip');
-  const exportPdfBtn = document.getElementById('exportPdfBtn');
   const dateInfo = document.getElementById('date-info');
   const loadingIndicator = document.getElementById('loading');
   const errorMessage = document.getElementById('errorMessage');
@@ -18,9 +17,6 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Initialize
   fetchScheduleData();
-  
-  // Set up export button
-  exportPdfBtn.addEventListener('click', exportToPdf);
   
   // Close tooltip when clicking elsewhere
   document.addEventListener('click', function(e) {
@@ -63,11 +59,36 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(data => {
         // Process data
         events = data.events;
+        
+        // Sort events chronologically by date and time
+        events.sort((a, b) => {
+          const dateA = new Date(a.Date.split(',')[1] + ',' + a.Date.split(',')[0]);
+          const dateB = new Date(b.Date.split(',')[1] + ',' + b.Date.split(',')[0]);
+          
+          if (dateA.getTime() !== dateB.getTime()) {
+            return dateA - dateB;
+          }
+          
+          // If same date, sort by time
+          return timeToMinutes(a["Time Start"]) - timeToMinutes(b["Time Start"]);
+        });
+        
         filteredEvents = [...events];
         lastUpdated = data.lastUpdated || formatDate(new Date());
         
-        // Extract unique days from events
-        days = [...new Set(events.map(event => event.Date))].sort();
+        // Extract unique days from events (in chronological order)
+        days = [];
+        const daysSet = new Set();
+        
+        events.forEach(event => {
+          if (!daysSet.has(event.Date)) {
+            daysSet.add(event.Date);
+            // Skip adding Friday to the days array - it will be grouped with Thursday
+            if (!event.Date.includes('Friday')) {
+              days.push(event.Date);
+            }
+          }
+        });
         
         // Update date info
         dateInfo.textContent = `Current as of ${lastUpdated}`;
@@ -111,8 +132,25 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     dayButtonsContainer.appendChild(allDaysBtn);
     
+    // Day-specific buttons - add Friday button to combine with Thursday
+    const uniqueDays = [...days];
+    
+    // Add Friday as a filterable option
+    const fridayEvents = events.filter(event => event.Date.includes('Friday'));
+    if (fridayEvents.length > 0) {
+      const fridayDate = fridayEvents[0].Date;
+      uniqueDays.push(fridayDate);
+    }
+    
+    // Sort uniqueDays chronologically
+    uniqueDays.sort((a, b) => {
+      const dateA = new Date(a.split(',')[1] + ',' + a.split(',')[0]);
+      const dateB = new Date(b.split(',')[1] + ',' + b.split(',')[0]);
+      return dateA - dateB;
+    });
+    
     // Day-specific buttons
-    days.forEach(day => {
+    uniqueDays.forEach(day => {
       const btn = document.createElement('button');
       btn.className = 'day-button';
       btn.textContent = day.split(',')[0]; // Just the day name
@@ -158,10 +196,17 @@ document.addEventListener('DOMContentLoaded', function() {
       noEventsMessage.style.display = 'none';
     }
     
-    // Group events by day
+    // Group events by day - combine Friday with Thursday
     const eventsByDay = {};
     days.forEach(day => {
-      eventsByDay[day] = filteredEvents.filter(event => event.Date === day);
+      if (day.includes('Thursday')) {
+        // Group Thursday and Friday events together
+        const thursdayEvents = filteredEvents.filter(event => event.Date === day);
+        const fridayEvents = filteredEvents.filter(event => event.Date.includes('Friday'));
+        eventsByDay[day] = [...thursdayEvents, ...fridayEvents];
+      } else {
+        eventsByDay[day] = filteredEvents.filter(event => event.Date === day);
+      }
     });
     
     // Create columns for days with events
@@ -174,10 +219,22 @@ document.addEventListener('DOMContentLoaded', function() {
       const column = document.createElement('div');
       column.className = 'day-column';
       
-      // Create header
+      // Create header - special case for Thursday to include Friday
       const header = document.createElement('div');
       header.className = 'day-header';
-      header.textContent = day;
+      
+      if (day.includes('Thursday')) {
+        // Check if we have Friday events
+        const hasFridayEvents = dayEvents.some(event => event.Date.includes('Friday'));
+        if (hasFridayEvents) {
+          header.textContent = day + ' & Friday, November 21';
+        } else {
+          header.textContent = day;
+        }
+      } else {
+        header.textContent = day;
+      }
+      
       column.appendChild(header);
       
       // Create content container
@@ -186,13 +243,33 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Sort events by time
       dayEvents.sort((a, b) => {
+        // First sort by date if different
+        if (a.Date !== b.Date) {
+          const dateA = new Date(a.Date.split(',')[1] + ',' + a.Date.split(',')[0]);
+          const dateB = new Date(b.Date.split(',')[1] + ',' + b.Date.split(',')[0]);
+          return dateA - dateB;
+        }
+        // Then sort by time
         return timeToMinutes(a["Time Start"]) - timeToMinutes(b["Time Start"]);
       });
       
+      // Add a divider between Thursday and Friday events if needed
+      let lastDate = '';
+      
       // Add events
       dayEvents.forEach(event => {
+        // Add a divider if we're transitioning to Friday events
+        if (lastDate !== event.Date && lastDate !== '' && event.Date.includes('Friday')) {
+          const divider = document.createElement('div');
+          divider.className = 'day-divider';
+          divider.textContent = 'Friday, November 21';
+          content.appendChild(divider);
+        }
+        
         const eventEl = createEventElement(event);
         content.appendChild(eventEl);
+        
+        lastDate = event.Date;
       });
       
       column.appendChild(content);
@@ -330,64 +407,6 @@ document.addEventListener('DOMContentLoaded', function() {
     tooltip.style.left = `${left}px`;
     tooltip.style.top = `${top}px`;
     tooltip.style.display = 'block';
-  }
-  
-  // Export schedule to PDF
-  function exportToPdf() {
-    // Hide tooltip during export
-    tooltip.style.display = 'none';
-    
-    // Create a temporary container for PDF export that excludes filters
-    const tempContainer = document.createElement('div');
-    tempContainer.className = 'container';
-    
-    // Clone header
-    const headerClone = document.querySelector('.header').cloneNode(true);
-    // Remove the export button from the clone
-    const exportBtnClone = headerClone.querySelector('.export-btn');
-    if (exportBtnClone) {
-      headerClone.removeChild(exportBtnClone);
-    }
-    tempContainer.appendChild(headerClone);
-    
-    // Clone legend only (not filters)
-    const legendClone = document.querySelector('.legend').cloneNode(true);
-    const legendContainer = document.createElement('div');
-    legendContainer.className = 'filters-container';
-    legendContainer.style.textAlign = 'center';
-    legendContainer.appendChild(legendClone);
-    tempContainer.appendChild(legendContainer);
-    
-    // Clone schedule grid
-    const scheduleGridClone = document.getElementById('scheduleGrid').cloneNode(true);
-    tempContainer.appendChild(scheduleGridClone);
-    
-    // Clone no events message if visible
-    if (noEventsMessage.style.display !== 'none') {
-      const noEventsClone = noEventsMessage.cloneNode(true);
-      tempContainer.appendChild(noEventsClone);
-    }
-    
-    // Add temporary container to document (invisible)
-    tempContainer.style.position = 'absolute';
-    tempContainer.style.left = '-9999px';
-    document.body.appendChild(tempContainer);
-    
-    // Define options for html2pdf
-    const options = {
-      margin: 10,
-      filename: 'schedule-at-a-glance.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-    };
-    
-    // Generate PDF
-    html2pdf().from(tempContainer).set(options).save().then(() => {
-      // Clean up - remove temporary container after PDF is generated
-      document.body.removeChild(tempContainer);
-    });
   }
   
   // Get time category based on hour
