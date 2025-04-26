@@ -24,23 +24,38 @@
         </div>
       </div>
       
-      <!-- Legend inside filters container -->
-      <div class="legend">
-        <div class="legend-item">
-          <span class="legend-color" style="background-color: #e6f4ff;"></span>
-          <span>Morning (4:00 AM - 11:59 AM)</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-color" style="background-color: #ffede6;"></span>
-          <span>Afternoon (12:00 PM - 4:59 PM)</span>
-        </div>
-        <div class="legend-item">
-          <span class="legend-color" style="background-color: #f0e6ff;"></span>
-          <span>Evening (5:00 PM - 3:59 AM)</span>
-        </div>
-        <div class="legend-item ticketed-legend">
-          <span class="ticketed-indicator"></span>
-          <span>Ticketed Event</span>
+      <!-- Combined Legend and Expand/Collapse -->
+      <div class="legend-container">
+        <div class="legend">
+          <div class="legend-item">
+            <span class="legend-color" style="background-color: #e6f4ff;"></span>
+            <span>Morning</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background-color: #ffede6;"></span>
+            <span>Afternoon</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background-color: #f0e6ff;"></span>
+            <span>Evening</span>
+          </div>
+          <div class="legend-item ticketed-legend">
+            <span class="ticketed-indicator"></span>
+            <span>Ticketed Event</span>
+          </div>
+          <div class="legend-item expand-collapse">
+            <div class="slider-container">
+              <span class="slider-label">Collapse</span>
+              <label class="toggle-slider">
+                <input type="checkbox" id="expandCollapseToggle">
+                <span class="slider"></span>
+              </label>
+              <span class="slider-label">Expand</span>
+            </div>
+          </div>
+          <div class="legend-item">
+            <button id="exportPdfBtn" class="export-btn">Export PDF</button>
+          </div>
         </div>
       </div>
     </div>
@@ -62,12 +77,13 @@
     <div class="error-message" id="errorMessage" style="display: none;">
       Error loading schedule data. Please try again later.
     </div>
-    
-    <!-- Tooltip container (separate from events for better positioning) -->
-    <div class="tooltip" id="tooltip"></div>
   </div>
 
-  <!-- Include external JavaScript files -->
+  <!-- Include jsPDF library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  
+  <!-- Include external JavaScript file -->
   <script src="script.js"></script>
 </body>
 </html>

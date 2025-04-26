@@ -3,10 +3,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const dayButtonsContainer = document.getElementById('dayButtons');
   const scheduleGrid = document.getElementById('scheduleGrid');
   const noEventsMessage = document.getElementById('noEvents');
-  const tooltip = document.getElementById('tooltip');
   const dateInfo = document.getElementById('date-info');
   const loadingIndicator = document.getElementById('loading');
   const errorMessage = document.getElementById('errorMessage');
+  const expandCollapseToggle = document.getElementById('expandCollapseToggle');
+  const exportPdfBtn = document.getElementById('exportPdfBtn');
   
   // State variables
   let events = [];
@@ -16,29 +17,6 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Initialize
   fetchScheduleData();
-  
-  // Close tooltip when clicking elsewhere
-  document.addEventListener('click', function(e) {
-    if (!e.target.closest('.event')) {
-      tooltip.style.display = 'none';
-    }
-  });
-  
-  // Make sure tooltip stays in viewport when scrolling
-  document.addEventListener('scroll', function() {
-    if (tooltip.style.display === 'block') {
-      const tooltipRect = tooltip.getBoundingClientRect();
-      
-      // Check if tooltip is now outside viewport due to scrolling
-      if (tooltipRect.bottom > window.innerHeight || 
-          tooltipRect.top < 0 || 
-          tooltipRect.right > window.innerWidth || 
-          tooltipRect.left < 0) {
-        // Hide tooltip if it's now outside viewport
-        tooltip.style.display = 'none';
-      }
-    }
-  });
   
   // Fetch schedule data from JSON file
   function fetchScheduleData() {
@@ -239,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event title
     const title = document.createElement('div');
     title.className = 'event-title';
-    title.textContent = event.Event;
+    title.innerHTML = `<span>${event.Event}</span>`;
     
     // Time display
     const time = document.createElement('div');
@@ -249,8 +227,14 @@ document.addEventListener('DOMContentLoaded', function() {
     element.appendChild(title);
     element.appendChild(time);
     
-    // Add ticketed badge if needed
+    // Add details for ticketed events
     if (isTicketed) {
+      const details = document.createElement('div');
+      details.className = 'event-details';
+      details.innerHTML = `<div><strong>Event Type:</strong> Ticketed Event</div>`;
+      element.appendChild(details);
+      
+      // Add ticketed badge
       const badge = document.createElement('div');
       badge.className = 'ticketed-badge';
       
@@ -260,84 +244,122 @@ document.addEventListener('DOMContentLoaded', function() {
       
       badge.appendChild(badgeText);
       element.appendChild(badge);
+      
+      // Add click event for only ticketed events to expand/collapse
+      element.addEventListener('click', function() {
+        this.classList.toggle('expanded');
+      });
     }
-    
-    // Add mouse events for tooltip
-    element.addEventListener('mouseenter', function(e) {
-      showEventTooltip(e, event);
-    });
-    
-    element.addEventListener('mouseleave', function() {
-      // We'll handle hiding with document click instead
-    });
-    
-    element.addEventListener('click', function(e) {
-      e.stopPropagation();
-      showEventTooltip(e, event);
-    });
     
     return element;
   }
   
-  // Show tooltip for an event near the mouse
-  function showEventTooltip(e, event) {
-    const isTicketed = event["Ticketed Event"] === "TRUE";
+  // Expand/Collapse toggle only affects ticketed events
+  expandCollapseToggle.addEventListener('change', function() {
+    const ticketedEvents = document.querySelectorAll('.event.ticketed');
     
-    // Set tooltip content
-    let tooltipContent = `
-      <div class="tooltip-title">${event.Event}</div>
-      <div class="tooltip-date">${event.Date}</div>
-      <div class="tooltip-detail">
-        <span class="tooltip-label">Time:</span> 
-        ${event["Time Start"]} - ${event["Time End"]}
-      </div>
-    `;
-    
-    // Only include ticketed info if it's a ticketed event
-    if (isTicketed) {
-      tooltipContent += `
-        <div class="tooltip-detail">
-          <span class="tooltip-label">Ticketed Event</span>
-        </div>
-      `;
+    if (this.checked) {
+      // Expand all ticketed events
+      ticketedEvents.forEach(event => {
+        event.classList.add('expanded');
+      });
+    } else {
+      // Collapse all ticketed events
+      ticketedEvents.forEach(event => {
+        event.classList.remove('expanded');
+      });
     }
+  });
+  
+  // PDF Export functionality
+  exportPdfBtn.addEventListener('click', function() {
+    // Create a clone of the schedule to modify for PDF export
+    const originalContainer = document.getElementById('schedule-container');
+    const pdfContainer = originalContainer.cloneNode(true);
     
-    tooltip.innerHTML = tooltipContent;
+    // Set the container to a fixed width for PDF export
+    pdfContainer.style.width = '1000px';
+    pdfContainer.style.maxWidth = 'none';
+    pdfContainer.style.margin = '0';
+    pdfContainer.style.padding = '20px';
+    pdfContainer.style.backgroundColor = 'white';
     
-    // Calculate position based on mouse pointer
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    // Remove filters container to exclude it from PDF
+    const filtersContainer = pdfContainer.querySelector('.filters-container');
+    filtersContainer.innerHTML = '';
+    filtersContainer.style.display = 'none';
     
-    // Make tooltip visible but hidden for measuring
-    tooltip.style.display = 'block';
-    tooltip.style.visibility = 'hidden';
-    const tooltipWidth = tooltip.offsetWidth;
-    const tooltipHeight = tooltip.offsetHeight;
-    tooltip.style.visibility = '';
+    // Add PDF-specific styles to the day sections
+    const daySections = pdfContainer.querySelectorAll('.day-section');
+    daySections.forEach(section => {
+      section.style.pageBreakInside = 'avoid';
+      section.style.breakInside = 'avoid';
+      
+      // Make day content a grid for PDF to show events side by side
+      const dayContent = section.querySelector('.day-content');
+      dayContent.style.display = 'grid';
+      dayContent.style.gridTemplateColumns = 'repeat(3, 1fr)';
+      dayContent.style.gap = '10px';
+      
+      // Ensure all events are showing
+      section.style.display = 'block';
+    });
     
-    // Position near the mouse pointer
-    let left = e.clientX + 15; // Offset from cursor
-    let top = e.clientY + 15;
+    // Make all ticketed events collapsed for PDF
+    const ticketedEvents = pdfContainer.querySelectorAll('.event.ticketed');
+    ticketedEvents.forEach(event => {
+      event.classList.remove('expanded');
+    });
     
-    // Check right edge
-    if (left + tooltipWidth > viewportWidth - 10) {
-      left = e.clientX - tooltipWidth - 15; // Position to the left of cursor
-    }
+    // Temporarily add the cloned container to the document for rendering
+    pdfContainer.style.position = 'absolute';
+    pdfContainer.style.left = '-9999px';
+    document.body.appendChild(pdfContainer);
     
-    // Check bottom edge
-    if (top + tooltipHeight > viewportHeight - 10) {
-      top = e.clientY - tooltipHeight - 15; // Position above cursor
-    }
-    
-    // Ensure tooltip is not off screen
-    left = Math.max(10, Math.min(viewportWidth - tooltipWidth - 10, left));
-    top = Math.max(10, Math.min(viewportHeight - tooltipHeight - 10, top));
-    
-    // Apply final position
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${top}px`;
-    tooltip.style.display = 'block';
-  }
+    // Use html2canvas to capture the container
+    html2canvas(pdfContainer, {
+      scale: 1,
+      useCORS: true,
+      logging: false
+    }).then(canvas => {
+      // Remove the temporary container
+      document.body.removeChild(pdfContainer);
+      
+      // Create PDF in landscape orientation (11x8.5 inches)
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'in',
+        format: 'letter'
+      });
+      
+      // Calculate the scaling ratio to fit the canvas to the PDF
+      const imgWidth = 11 - 1; // Landscape letter width minus margins
+      const imgHeight = 8.5 - 1; // Landscape letter height minus margins
+      const canvasRatio = canvas.height / canvas.width;
+      const pdfRatio = imgHeight / imgWidth;
+      
+      let finalWidth = imgWidth;
+      let finalHeight = imgWidth * canvasRatio;
+      
+      // Adjust if the image is too tall
+      if (finalHeight > imgHeight) {
+        finalHeight = imgHeight;
+        finalWidth = imgHeight / canvasRatio;
+      }
+      
+      // Center the image on the page
+      const offsetX = (11 - finalWidth) / 2;
+      const offsetY = (8.5 - finalHeight) / 2;
+      
+      // Add the image to the PDF
+      const imgData = canvas.toDataURL('image/png');
+      pdf.addImage(imgData, 'PNG', offsetX, offsetY, finalWidth, finalHeight);
+      
+      // Save the PDF
+      pdf.save('schedule-at-a-glance.pdf');
+    });
+  });
   
   // Get time category based on hour with new ranges
   function getTimeCategory(timeStart) {
