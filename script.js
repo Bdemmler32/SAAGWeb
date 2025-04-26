@@ -16,6 +16,14 @@ document.addEventListener('DOMContentLoaded', function() {
   let days = [];
   let lastUpdated = '';
   
+  // Helper: parse event date string into a Date object
+  function parseEventDate(dateStr, year) {
+    // dateStr like "Saturday, November 15"
+    const parts = dateStr.split(', ');
+    const monthDay = parts[1]; // "November 15"
+    return new Date(`${monthDay}, ${year}`);
+  }
+  
   // Initialize
   fetchScheduleData();
   
@@ -33,13 +41,10 @@ document.addEventListener('DOMContentLoaded', function() {
   document.addEventListener('scroll', function() {
     if (tooltip.style.display === 'block') {
       const tooltipRect = tooltip.getBoundingClientRect();
-      
-      // Check if tooltip is now outside viewport due to scrolling
       if (tooltipRect.bottom > window.innerHeight || 
           tooltipRect.top < 0 || 
           tooltipRect.right > window.innerWidth || 
           tooltipRect.left < 0) {
-        // Hide tooltip if it's now outside viewport
         tooltip.style.display = 'none';
       }
     }
@@ -47,7 +52,6 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Fetch schedule data from JSON file
   function fetchScheduleData() {
-    // Show loading indicator
     loadingIndicator.style.display = 'block';
     noEventsMessage.style.display = 'none';
     scheduleGrid.style.display = 'none';
@@ -61,34 +65,33 @@ document.addEventListener('DOMContentLoaded', function() {
         return response.json();
       })
       .then(data => {
-        // Process data
         events = data.events;
         filteredEvents = [...events];
         lastUpdated = data.lastUpdated || formatDate(new Date());
         
-        // Extract unique days from events
-        days = [...new Set(events.map(event => event.Date))].sort();
+        // Determine year for date parsing
+        const year = lastUpdated.includes('/') ? parseInt(lastUpdated.split('/')[2]) : new Date().getFullYear();
+        
+        // Extract unique days and sort chronologically
+        days = [...new Set(events.map(event => event.Date))];
+        days.sort((a, b) => parseEventDate(a, year) - parseEventDate(b, year));
         
         // Update date info
         dateInfo.textContent = `Current as of ${lastUpdated}`;
         
-        // Hide loading indicator
         loadingIndicator.style.display = 'none';
         scheduleGrid.style.display = 'grid';
         
-        // Initialize UI
         createDayButtons();
         renderSchedule();
       })
       .catch(error => {
-        // Show error message
         loadingIndicator.style.display = 'none';
         errorMessage.style.display = 'block';
         console.error('Error fetching schedule data:', error);
       });
   }
   
-  // Format date as MM/DD/YYYY
   function formatDate(date) {
     const d = new Date(date);
     const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -97,12 +100,8 @@ document.addEventListener('DOMContentLoaded', function() {
     return `${month}/${day}/${year}`;
   }
   
-  // Create day filter buttons
   function createDayButtons() {
-    // Clear container
     dayButtonsContainer.innerHTML = '';
-    
-    // All days button
     const allDaysBtn = document.createElement('button');
     allDaysBtn.className = 'day-button active';
     allDaysBtn.textContent = 'All Days';
@@ -111,11 +110,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     dayButtonsContainer.appendChild(allDaysBtn);
     
-    // Day-specific buttons
     days.forEach(day => {
       const btn = document.createElement('button');
       btn.className = 'day-button';
-      btn.textContent = day.split(',')[0]; // Just the day name
+      btn.textContent = day.split(',')[0];
       btn.addEventListener('click', function() {
         setActiveDay(day, this);
       });
@@ -123,34 +121,25 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Set active day
   function setActiveDay(day, button) {
     selectedDay = day;
-    
-    // Update button styles
     const buttons = dayButtonsContainer.querySelectorAll('.day-button');
     buttons.forEach(btn => btn.classList.remove('active'));
     button.classList.add('active');
-    
     applyFilters();
   }
   
-  // Apply filters and update display
   function applyFilters() {
     let filtered = [...events];
-    
     if (selectedDay) {
       filtered = filtered.filter(event => event.Date === selectedDay);
     }
-    
     filteredEvents = filtered;
     renderSchedule();
   }
   
-  // Render the schedule grid
   function renderSchedule() {
     scheduleGrid.innerHTML = '';
-    
     if (filteredEvents.length === 0) {
       noEventsMessage.style.display = 'block';
       return;
@@ -158,262 +147,121 @@ document.addEventListener('DOMContentLoaded', function() {
       noEventsMessage.style.display = 'none';
     }
     
-    // Group events by day
     const eventsByDay = {};
     days.forEach(day => {
       eventsByDay[day] = filteredEvents.filter(event => event.Date === day);
+      // sort each day's events by start time
+      eventsByDay[day].sort((a, b) => timeToMinutes(a['Time Start']) - timeToMinutes(b['Time Start']));
     });
     
-    // Create columns for days with events
     days.forEach(day => {
       const dayEvents = eventsByDay[day];
-      
       if (dayEvents.length === 0) return;
-      
-      // Create column element
       const column = document.createElement('div');
       column.className = 'day-column';
-      
-      // Create header
       const header = document.createElement('div');
       header.className = 'day-header';
       header.textContent = day;
       column.appendChild(header);
-      
-      // Create content container
       const content = document.createElement('div');
       content.className = 'day-content';
-      
-      // Sort events by time
-      dayEvents.sort((a, b) => {
-        return timeToMinutes(a["Time Start"]) - timeToMinutes(b["Time Start"]);
-      });
-      
-      // Add events
       dayEvents.forEach(event => {
-        const eventEl = createEventElement(event);
-        content.appendChild(eventEl);
+        content.appendChild(createEventElement(event));
       });
-      
       column.appendChild(content);
       scheduleGrid.appendChild(column);
     });
   }
   
-  // Create an event element
   function createEventElement(event) {
-    const timeCategory = getTimeCategory(event["Time Start"]);
-    const isTicketed = event["Ticketed Event"] === "TRUE";
-    
+    const timeCategory = getTimeCategory(event['Time Start']);
+    const isTicketed = event['Ticketed Event'] === 'TRUE';
     const element = document.createElement('div');
-    element.className = `event ${timeCategory}`;
-    if (isTicketed) {
-      element.classList.add('ticketed');
-    }
-    
-    // Event title
+    element.className = `event ${timeCategory}` + (isTicketed ? ' ticketed' : '');
     const title = document.createElement('div');
     title.className = 'event-title';
     title.textContent = event.Event;
-    
-    // Time display
     const time = document.createElement('div');
     time.className = 'event-time';
-    time.textContent = `${event["Time Start"]} - ${event["Time End"]}`;
-    
+    time.textContent = `${event['Time Start']} - ${event['Time End']}`;
     element.appendChild(title);
     element.appendChild(time);
-    
-    // Add ticketed badge if needed
     if (isTicketed) {
       const badge = document.createElement('div');
       badge.className = 'ticketed-badge';
-      
       const badgeText = document.createElement('div');
       badgeText.className = 'ticketed-text';
       badgeText.textContent = 'TICKETED';
-      
       badge.appendChild(badgeText);
       element.appendChild(badge);
     }
-    
-    // Add mouse events for tooltip
-    element.addEventListener('mouseenter', function(e) {
-      showEventTooltip(e, event);
-    });
-    
-    element.addEventListener('mouseleave', function() {
-      // We'll handle hiding with document click instead
-    });
-    
-    element.addEventListener('click', function(e) {
+    element.addEventListener('click', e => {
       e.stopPropagation();
       showEventTooltip(e, event);
     });
-    
     return element;
   }
   
-  // Show tooltip for an event
   function showEventTooltip(e, event) {
-    const isTicketed = event["Ticketed Event"] === "TRUE";
-    
-    // Set tooltip content
+    const isTicketed = event['Ticketed Event'] === 'TRUE';
     let tooltipContent = `
-      <div class="tooltip-title">${event.Event}</div>
-      <div class="tooltip-date">${event.Date}</div>
-      <div class="tooltip-detail">
-        <span class="tooltip-label">Time:</span> 
-        ${event["Time Start"]} - ${event["Time End"]}
-      </div>
+      <div class='tooltip-title'>${event.Event}</div>
+      <div class='tooltip-date'>${event.Date}</div>
+      <div class='tooltip-detail'><span class='tooltip-label'>Time:</span> ${event['Time Start']} - ${event['Time End']}</div>
     `;
-    
-    // Only include ticketed info if it's a ticketed event
     if (isTicketed) {
-      tooltipContent += `
-        <div class="tooltip-detail">
-          <span class="tooltip-label">Ticketed Event</span>
-        </div>
-      `;
+      tooltipContent += `<div class='tooltip-detail'><span class='tooltip-label'>Ticketed Event</span></div>`;
     }
-    
     tooltip.innerHTML = tooltipContent;
-    
-    // Calculate position to ensure tooltip is fully visible
     const rect = e.currentTarget.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    
-    // Make tooltip visible but hidden for measuring
     tooltip.style.display = 'block';
     tooltip.style.visibility = 'hidden';
-    const tooltipWidth = tooltip.offsetWidth;
-    const tooltipHeight = tooltip.offsetHeight;
+    const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
     tooltip.style.visibility = '';
-    
-    // Initial position (try to position to the right first)
-    let left = rect.right + 10;
-    let top = rect.top;
-    
-    // Check right edge
-    if (left + tooltipWidth > viewportWidth - 10) {
-      // Try left side instead
-      left = rect.left - tooltipWidth - 10;
-      
-      // If still doesn't fit, center horizontally
+    let left = rect.right + 10, top = rect.top;
+    if (left + tw > window.innerWidth - 10) {
+      left = rect.left - tw - 10;
       if (left < 10) {
-        left = Math.max(10, Math.min(viewportWidth - tooltipWidth - 10, 
-                                     rect.left + (rect.width / 2) - (tooltipWidth / 2)));
-        
-        // Position above or below based on available space
-        if (rect.top > viewportHeight / 2) {
-          // More space above, position above the element
-          top = rect.top - tooltipHeight - 10;
-        } else {
-          // More space below, position below the element
-          top = rect.bottom + 10;
-        }
+        left = Math.max(10, rect.left + rect.width/2 - tw/2);
+        top = rect.top > window.innerHeight/2 ? rect.top - th - 10 : rect.bottom + 10;
       }
     }
-    
-    // Check top edge
-    if (top < 10) {
-      top = 10;
-    }
-    
-    // Check bottom edge
-    if (top + tooltipHeight > viewportHeight - 10) {
-      top = viewportHeight - tooltipHeight - 10;
-    }
-    
-    // Apply final position
+    if (top < 10) top = 10;
+    if (top + th > window.innerHeight - 10) top = window.innerHeight - th - 10;
     tooltip.style.left = `${left}px`;
     tooltip.style.top = `${top}px`;
     tooltip.style.display = 'block';
   }
   
-  // Export schedule to PDF
   function exportToPdf() {
-    // Hide tooltip during export
     tooltip.style.display = 'none';
-    
-    // Create a temporary container for PDF export that excludes filters
-    const tempContainer = document.createElement('div');
-    tempContainer.className = 'container';
-    
-    // Clone header
-    const headerClone = document.querySelector('.header').cloneNode(true);
-    // Remove the export button from the clone
-    const exportBtnClone = headerClone.querySelector('.export-btn');
-    if (exportBtnClone) {
-      headerClone.removeChild(exportBtnClone);
-    }
-    tempContainer.appendChild(headerClone);
-    
-    // Clone legend only (not filters)
-    const legendClone = document.querySelector('.legend').cloneNode(true);
-    const legendContainer = document.createElement('div');
-    legendContainer.className = 'filters-container';
-    legendContainer.style.textAlign = 'center';
-    legendContainer.appendChild(legendClone);
-    tempContainer.appendChild(legendContainer);
-    
-    // Clone schedule grid
-    const scheduleGridClone = document.getElementById('scheduleGrid').cloneNode(true);
-    tempContainer.appendChild(scheduleGridClone);
-    
-    // Clone no events message if visible
-    if (noEventsMessage.style.display !== 'none') {
-      const noEventsClone = noEventsMessage.cloneNode(true);
-      tempContainer.appendChild(noEventsClone);
-    }
-    
-    // Add temporary container to document (invisible)
-    tempContainer.style.position = 'absolute';
-    tempContainer.style.left = '-9999px';
-    document.body.appendChild(tempContainer);
-    
-    // Define options for html2pdf
-    const options = {
+    html2pdf().from(document.getElementById('schedule-container')).set({
       margin: 10,
       filename: 'schedule-at-a-glance.pdf',
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
       pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-    };
-    
-    // Generate PDF
-    html2pdf().from(tempContainer).set(options).save().then(() => {
-      // Clean up - remove temporary container after PDF is generated
-      document.body.removeChild(tempContainer);
-    });
+    }).save();
   }
   
-  // Get time category based on hour
   function getTimeCategory(timeStart) {
     const hour = parseInt(timeStart.split(':')[0]);
     const isPM = timeStart.includes('PM');
-    
-    const hour24 = isPM && hour !== 12 ? hour + 12 : hour;
-    
+    const hour24 = isPM && hour !== 12 ? hour + 12 : (hour === 12 && !timeStart.includes('PM') ? 0 : hour);
     if (hour24 < 10) return 'morning';
     if (hour24 < 13) return 'midday';
     if (hour24 < 17) return 'afternoon';
     return 'evening';
   }
   
-  // Convert time to minutes for sorting
   function timeToMinutes(timeStr) {
-    const hour = parseInt(timeStr.split(':')[0]);
-    const minutePart = timeStr.split(':')[1];
-    const minutes = parseInt(minutePart);
+    const [h, mPart] = timeStr.split(':');
+    const minutes = parseInt(mPart);
     const isPM = timeStr.includes('PM');
-    
-    let hour24 = hour;
-    if (isPM && hour !== 12) hour24 = hour + 12;
-    if (!isPM && hour === 12) hour24 = 0;
-    
+    let hour24 = parseInt(h);
+    if (isPM && hour24 !== 12) hour24 += 12;
+    if (!isPM && hour24 === 12) hour24 = 0;
     return hour24 * 60 + minutes;
   }
 });
