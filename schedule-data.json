@@ -1,5 +1,4 @@
 {
-  "lastUpdated": "04/25/2025",
   "events": [
     {
       "Event": "Registration Open",
@@ -407,5 +406,6 @@
       "Time End": "4:30 PM",
       "Ticketed Event": "TRUE"
     }
-  ]
+  ],
+  "lastUpdated": "04/25/2025"
 }
