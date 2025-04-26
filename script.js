@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
-  // Fetch schedule data from JSON file
+  // Fetch schedule data from JSON file with debugging
   function fetchScheduleData() {
     // Show loading indicator
     loadingIndicator.style.display = 'block';
@@ -53,14 +53,26 @@ document.addEventListener('DOMContentLoaded', function() {
     scheduleGrid.style.display = 'none';
     errorMessage.style.display = 'none';
     
+    console.log('Attempting to fetch schedule data...');
+    
     fetch('schedule-data.json')
       .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        
         if (!response.ok) {
-          throw new Error('Network response was not ok');
+          throw new Error(`HTTP error! Status: ${response.status}`);
         }
         return response.json();
       })
       .then(data => {
+        console.log('Data successfully loaded:', data);
+        
+        // Validate data structure
+        if (!data || !Array.isArray(data.events) || data.events.length === 0) {
+          throw new Error('Invalid data structure or empty events array');
+        }
+        
         // Process data
         events = data.events;
         filteredEvents = [...events];
@@ -68,6 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Extract unique days from events
         days = [...new Set(events.map(event => event.Date))].sort();
+        console.log('Extracted days:', days);
         
         // Update date info
         dateInfo.textContent = `Current as of ${lastUpdated}`;
@@ -81,11 +94,91 @@ document.addEventListener('DOMContentLoaded', function() {
         renderSchedule();
       })
       .catch(error => {
-        // Show error message
+        // Show detailed error message
+        console.error('Error fetching schedule data:', error);
         loadingIndicator.style.display = 'none';
         errorMessage.style.display = 'block';
-        console.error('Error fetching schedule data:', error);
+        errorMessage.innerHTML = `Error loading schedule data: ${error.message}<br><br>
+          <strong>Debugging tips:</strong><br>
+          1. Check that 'schedule-data.json' exists in the same directory as this HTML file<br>
+          2. Verify that the JSON file contains valid JSON data<br>
+          3. Check the browser console (F12) for more detailed error information`;
+          
+        // Fall back to demo data for development
+        useFallbackData();
       });
+  }
+  
+  // Fallback data in case JSON file can't be loaded
+  function useFallbackData() {
+    console.log('Using fallback data');
+    
+    const fallbackData = {
+      "lastUpdated": "04/25/2025",
+      "events": [
+        {
+          "Event": "Registration Open",
+          "Date": "Saturday, November 15",
+          "Time Start": "7:00 AM",
+          "Time End": "5:00 PM",
+          "Ticketed Event": null
+        },
+        {
+          "Event": "One-Day Short Course: Hydrometallurgy",
+          "Date": "Saturday, November 15",
+          "Time Start": "8:00 AM",
+          "Time End": "5:00 PM",
+          "Ticketed Event": "TRUE"
+        },
+        {
+          "Event": "Registration Open",
+          "Date": "Sunday, November 16",
+          "Time Start": "7:00 AM",
+          "Time End": "7:00 PM",
+          "Ticketed Event": null
+        },
+        {
+          "Event": "Opening Plenary",
+          "Date": "Sunday, November 16",
+          "Time Start": "4:00 PM",
+          "Time End": "5:30 PM",
+          "Ticketed Event": null
+        },
+        {
+          "Event": "Technical Sessions",
+          "Date": "Monday, November 17",
+          "Time Start": "8:30 AM",
+          "Time End": "11:30 AM",
+          "Ticketed Event": null
+        },
+        {
+          "Event": "Student Mixer/Social",
+          "Date": "Monday, November 17",
+          "Time Start": "7:00 PM",
+          "Time End": "9:00 PM",
+          "Ticketed Event": "TRUE"
+        }
+      ]
+    };
+    
+    // Process fallback data
+    events = fallbackData.events;
+    filteredEvents = [...events];
+    lastUpdated = fallbackData.lastUpdated;
+    
+    // Extract unique days from events
+    days = [...new Set(events.map(event => event.Date))].sort();
+    
+    // Update date info
+    dateInfo.textContent = `Current as of ${lastUpdated} (DEMO DATA)`;
+    
+    // Hide loading indicator
+    loadingIndicator.style.display = 'none';
+    scheduleGrid.style.display = 'grid';
+    
+    // Initialize UI
+    createDayButtons();
+    renderSchedule();
   }
   
   // Format date as MM/DD/YYYY
@@ -405,6 +498,8 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Convert time to minutes for sorting
   function timeToMinutes(timeStr) {
+    if (!timeStr) return 0;
+    
     const hour = parseInt(timeStr.split(':')[0]);
     const minutePart = timeStr.split(':')[1];
     const minutes = parseInt(minutePart);
