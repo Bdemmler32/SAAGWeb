@@ -9,21 +9,15 @@ document.addEventListener('DOMContentLoaded', function() {
   const loadingIndicator = document.getElementById('loading');
   const errorMessage = document.getElementById('errorMessage');
 
-  // State
-  let events = [];
-  let filteredEvents = [];
-  let selectedDay = null;
-  let days = [];
-  let lastUpdated = '';
+  let events = [], filteredEvents = [], selectedDay = null, days = [], lastUpdated = '';
 
-  // Parse date string into Date object
+  // Parse date string
   function parseEventDate(dateStr, year) {
-    const parts = dateStr.split(', ');
-    const monthDay = parts[1];
+    const parts = dateStr.split(', '), monthDay = parts[1];
     return new Date(`${monthDay}, ${year}`);
   }
 
-  // Initial load
+  // Initialize
   fetchScheduleData();
   exportPdfBtn.addEventListener('click', exportToPdf);
   document.addEventListener('click', e => { if (!e.target.closest('.event')) tooltip.style.display = 'none'; });
@@ -53,10 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
         days.sort((a,b) => parseEventDate(a, year) - parseEventDate(b, year));
         dateInfo.textContent = `Current as of ${lastUpdated}`;
         loadingIndicator.style.display = 'none';
-        // Display days in a horizontal row
-        scheduleGrid.style.display = 'flex';
-        scheduleGrid.style.flexWrap = 'nowrap';
-        scheduleGrid.style.overflowX = 'auto';
+        scheduleGrid.style.display = 'block';
         createDayButtons();
         renderSchedule();
       })
@@ -101,20 +92,14 @@ document.addEventListener('DOMContentLoaded', function() {
     scheduleGrid.innerHTML = '';
     if (!filteredEvents.length) { noEventsMessage.style.display = 'block'; return; }
     noEventsMessage.style.display = 'none';
-    const byDay = {};
     days.forEach(day => {
-      const list = filteredEvents.filter(ev => ev.Date === day);
-      list.sort((a,b) => timeToMinutes(a['Time Start']) - timeToMinutes(b['Time Start']));
-      if (list.length) byDay[day] = list;
-    });
-    Object.keys(byDay).forEach(day => {
+      const dayEvents = filteredEvents.filter(ev => ev.Date === day);
+      if (!dayEvents.length) return;
+      dayEvents.sort((a,b) => timeToMinutes(a['Time Start']) - timeToMinutes(b['Time Start']));
       const col = document.createElement('div'); col.className = 'day-column';
-      // make each column full width of viewport
-      col.style.flex = '0 0 100%';
-      col.style.maxWidth = '100%';
       const hdr = document.createElement('div'); hdr.className = 'day-header'; hdr.textContent = day;
       const cont = document.createElement('div'); cont.className = 'day-content';
-      byDay[day].forEach(ev => cont.appendChild(createEventElement(ev)));
+      dayEvents.forEach(ev => cont.appendChild(createEventElement(ev)));
       col.append(hdr, cont);
       scheduleGrid.appendChild(col);
     });
@@ -137,48 +122,37 @@ document.addEventListener('DOMContentLoaded', function() {
     const r = e.currentTarget.getBoundingClientRect(); tooltip.style.display = 'block'; tooltip.style.visibility = 'hidden';
     const tw = tooltip.offsetWidth, th = tooltip.offsetHeight; tooltip.style.visibility = '';
     let left = r.right + 10, top = r.top;
-    if (left + tw > window.innerWidth - 10) { left = r.left - tw - 10; if (left < 10) { left = Math.max(10, r.left + r.width/2 - tw/2); top = r.top > window.innerHeight/2 ? r.top - th - 10 : r.bottom + 10; } }
-    if (top < 10) top = 10; if (top + th > window.innerHeight - 10) top = window.innerHeight - th - 10;
+    if (left + tw > window.innerWidth - 10) {
+      left = r.left - tw - 10;
+      if (left < 10) { left = Math.max(10, r.left + r.width/2 - tw/2); top = r.top > window.innerHeight/2 ? r.top - th - 10 : r.bottom + 10; }
+    }
+    if (top < 10) top = 10;
+    if (top + th > window.innerHeight - 10) top = window.innerHeight - th - 10;
     tooltip.style.left = `${left}px`; tooltip.style.top = `${top}px`;
   }
 
-  // Export each day as its own portrait page
   function exportToPdf() {
     tooltip.style.display = 'none';
-    const columns = Array.from(document.querySelectorAll('.day-column'));
-    const tempContainer = document.createElement('div');
-    tempContainer.style.background = '#fff';
-    // stack vertically for export
-    tempContainer.style.display = 'block';
-    const pagePx = 8.5 * 96; // letter width in px
-    columns.forEach(col => {
-      const clone = col.cloneNode(true);
-      clone.style.width = `${pagePx}px`;
-      clone.style.margin = '0 auto 20px';
-      clone.style.pageBreakAfter = 'always';
-      tempContainer.appendChild(clone);
+    const cols = document.querySelectorAll('.day-column');
+    const temp = document.createElement('div'); temp.style.background = '#fff'; temp.style.position = 'absolute'; temp.style.left = '-9999px';
+    cols.forEach(col => {
+      const c = col.cloneNode(true);
+      c.style.width = '816px';
+      c.style.margin = '0 auto 20px';
+      c.style.pageBreakAfter = 'always';
+      temp.appendChild(c);
     });
-    tempContainer.style.position = 'absolute'; tempContainer.style.left = '-9999px';
-    document.body.appendChild(tempContainer);
-    html2pdf().from(tempContainer).set({
-      margin: [10,10,10,10],
-      filename: 'schedule-at-a-glance.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { useCORS: true, scale: 1 },
-      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] }
-    }).save().then(() => { document.body.removeChild(tempContainer); });
+    document.body.appendChild(temp);
+    html2pdf().from(temp).set({ margin: [10,10], filename: 'schedule.pdf', image: { type: 'jpeg', quality: .98 }, html2canvas: { useCORS: true }, jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }, pagebreak: { mode: ['css'] } }).save().then(()=>document.body.removeChild(temp));
   }
 
   function getTimeCategory(time) {
-    const h = parseInt(time.split(':')[0]); const pm = time.includes('PM');
-    let hh = pm && h !== 12 ? h+12 : (h===12 && !pm ? 0 : h);
-    return hh < 10 ? 'morning' : hh < 13 ? 'midday' : hh < 17 ? 'afternoon' : 'evening';
+    const h = parseInt(time.split(':')[0]); const pm = time.includes('PM'); let hh = pm && h!==12?h+12:(h===12&&!pm?0:h);
+    return hh<10?'morning':hh<13?'midday':hh<17?'afternoon':'evening';
   }
 
   function timeToMinutes(t) {
-    const [h,m] = t.split(':'); const mins = parseInt(m); const pm = t.includes('PM');
-    let hh = parseInt(h); if (pm && hh !== 12) hh+=12; if (!pm && hh===12) hh=0;
-    return hh*60 + mins;
+    const [h,m] = t.split(':'); const pm = t.includes('PM'); let hh = parseInt(h);
+    if(pm && hh!==12) hh+=12; if(!pm && hh===12) hh=0; return hh*60+parseInt(m);
   }
 });
