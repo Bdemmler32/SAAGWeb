@@ -153,14 +153,18 @@ h1 {
   border-right-color: #4a7aff;
 }
 
-/* Schedule grid */
+/* Schedule grid: full-width horizontal scroll */
 .schedule {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   gap: 20px;
+  padding-bottom: 10px;
 }
 
 .day-column {
+  flex: 0 0 100%;
+  max-width: 100%;
   background-color: white;
   border-radius: 8px;
   overflow: hidden;
