@@ -395,8 +395,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add ticketed indicator if needed
         if (isTicketed) {
-          eventEl.style.borderRightWidth = '6px';
-          eventEl.style.borderRightColor = '#4a7aff';
+          eventEl.style.position = 'relative';
+          eventEl.style.paddingRight = '8px';
+          eventEl.style.borderRight = '6px solid #4a7aff';
         }
         
         // Event title
