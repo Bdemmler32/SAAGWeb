@@ -129,12 +129,14 @@ h1 {
 
 /* Schedule grid */
 .schedule {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 20px;
+  width: 100%;
 }
 
-.day-column {
+.day-section {
+  width: 100%;
   background-color: white;
   border-radius: 8px;
   overflow: hidden;
@@ -146,31 +148,33 @@ h1 {
   color: white;
   padding: 10px 15px;
   font-weight: 600;
+  text-align: center;
 }
 
 .day-content {
   padding: 15px;
   min-height: 100px;
-}
-
-.day-header-inner {
-  background-color: #333;
-  color: white;
-  padding: 10px 15px;
-  font-weight: 600;
-  margin: 20px -15px 15px -15px;
-  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .event {
   padding: 12px;
   padding-right: 20px;
-  margin-bottom: 10px;
   border-radius: 8px;
   border: 2px solid transparent;
   cursor: pointer;
   position: relative;
   transition: all 0.2s;
+  flex: 1 1 300px;
+  max-width: 100%;
+}
+
+@media (min-width: 768px) {
+  .event {
+    max-width: calc(33.33% - 10px);
+  }
 }
 
 .event:hover {
@@ -218,15 +222,10 @@ h1 {
   text-transform: uppercase;
 }
 
-/* Time categories */
+/* Time categories - updated ranges */
 .morning {
   background-color: #e6f4ff;
   border-color: #b3d7ff;
-}
-
-.midday {
-  background-color: #fff9e6;
-  border-color: #ffe8b3;
 }
 
 .afternoon {
@@ -309,6 +308,10 @@ h1 {
   .legend {
     justify-content: center;
   }
+  
+  .event {
+    flex: 1 1 100%;
+  }
 }
 
 /* Print-specific styles */
@@ -326,10 +329,18 @@ h1 {
     display: block;
   }
   
-  .day-column {
+  .day-section {
     margin-bottom: 20px;
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+  
+  .day-content {
+    display: block;
+  }
+  
+  .event {
+    margin-bottom: 10px;
   }
   
   .event:hover {

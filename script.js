@@ -12,7 +12,6 @@ document.addEventListener('DOMContentLoaded', function() {
   let events = [];
   let filteredEvents = [];
   let selectedDay = null;
-  let days = [];
   let lastUpdated = '';
   
   // Initialize
@@ -76,26 +75,12 @@ document.addEventListener('DOMContentLoaded', function() {
         filteredEvents = [...events];
         lastUpdated = data.lastUpdated || formatDate(new Date());
         
-        // Extract unique days from events (in chronological order)
-        days = [];
-        const daysSet = new Set();
-        
-        events.forEach(event => {
-          if (!daysSet.has(event.Date)) {
-            daysSet.add(event.Date);
-            // Skip adding Friday to the days array - it will be grouped with Thursday
-            if (!event.Date.includes('Friday')) {
-              days.push(event.Date);
-            }
-          }
-        });
-        
         // Update date info
         dateInfo.textContent = `Current as of ${lastUpdated}`;
         
         // Hide loading indicator
         loadingIndicator.style.display = 'none';
-        scheduleGrid.style.display = 'grid';
+        scheduleGrid.style.display = 'flex';
         
         // Initialize UI
         createDayButtons();
@@ -132,15 +117,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     dayButtonsContainer.appendChild(allDaysBtn);
     
-    // Day-specific buttons - add Friday button to combine with Thursday
-    const uniqueDays = [...days];
-    
-    // Add Friday as a filterable option
-    const fridayEvents = events.filter(event => event.Date.includes('Friday'));
-    if (fridayEvents.length > 0) {
-      const fridayDate = fridayEvents[0].Date;
-      uniqueDays.push(fridayDate);
-    }
+    // Get all unique days from the events
+    const uniqueDays = [...new Set(events.map(event => event.Date))];
     
     // Sort uniqueDays chronologically
     uniqueDays.sort((a, b) => {
@@ -196,34 +174,36 @@ document.addEventListener('DOMContentLoaded', function() {
       noEventsMessage.style.display = 'none';
     }
     
-    // Group events by day - combine Friday with Thursday
+    // Group events by day
     const eventsByDay = {};
-    days.forEach(day => {
-      if (day.includes('Thursday')) {
-        // Group Thursday and Friday events together
-        const thursdayEvents = filteredEvents.filter(event => event.Date === day);
-        const fridayEvents = filteredEvents.filter(event => event.Date.includes('Friday'));
-        eventsByDay[day] = [...thursdayEvents, ...fridayEvents];
-      } else {
-        eventsByDay[day] = filteredEvents.filter(event => event.Date === day);
-      }
+    
+    // Get all unique days from filtered events
+    const uniqueDays = [...new Set(filteredEvents.map(event => event.Date))].sort((a, b) => {
+      const dateA = new Date(a.split(',')[1] + ',' + a.split(',')[0]);
+      const dateB = new Date(b.split(',')[1] + ',' + b.split(',')[0]);
+      return dateA - dateB;
     });
     
-    // Create columns for days with events
-    days.forEach(day => {
+    // Create groups of events by day
+    uniqueDays.forEach(day => {
+      eventsByDay[day] = filteredEvents.filter(event => event.Date === day);
+    });
+    
+    // Create sections for days with events
+    uniqueDays.forEach(day => {
       const dayEvents = eventsByDay[day];
       
       if (dayEvents.length === 0) return;
       
-      // Create column element
-      const column = document.createElement('div');
-      column.className = 'day-column';
+      // Create day section
+      const section = document.createElement('div');
+      section.className = 'day-section';
       
-      // Create header - just use the day text
+      // Create header
       const header = document.createElement('div');
       header.className = 'day-header';
       header.textContent = day;
-      column.appendChild(header);
+      section.appendChild(header);
       
       // Create content container
       const content = document.createElement('div');
@@ -231,37 +211,17 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Sort events by time
       dayEvents.sort((a, b) => {
-        // First sort by date if different
-        if (a.Date !== b.Date) {
-          const dateA = new Date(a.Date.split(',')[1] + ',' + a.Date.split(',')[0]);
-          const dateB = new Date(b.Date.split(',')[1] + ',' + b.Date.split(',')[0]);
-          return dateA - dateB;
-        }
-        // Then sort by time
         return timeToMinutes(a["Time Start"]) - timeToMinutes(b["Time Start"]);
       });
       
-      // Add a divider between Thursday and Friday events if needed
-      let lastDate = '';
-      
       // Add events
       dayEvents.forEach(event => {
-        // Add a Friday header if we're transitioning to Friday events
-        if (lastDate !== event.Date && lastDate !== '' && event.Date.includes('Friday')) {
-          const fridayHeader = document.createElement('div');
-          fridayHeader.className = 'day-header-inner';
-          fridayHeader.textContent = 'Friday, November 21';
-          content.appendChild(fridayHeader);
-        }
-        
         const eventEl = createEventElement(event);
         content.appendChild(eventEl);
-        
-        lastDate = event.Date;
       });
       
-      column.appendChild(content);
-      scheduleGrid.appendChild(column);
+      section.appendChild(content);
+      scheduleGrid.appendChild(section);
     });
   }
   
@@ -319,7 +279,7 @@ document.addEventListener('DOMContentLoaded', function() {
     return element;
   }
   
-  // Show tooltip for an event
+  // Show tooltip for an event near the mouse
   function showEventTooltip(e, event) {
     const isTicketed = event["Ticketed Event"] === "TRUE";
     
@@ -344,8 +304,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     tooltip.innerHTML = tooltipContent;
     
-    // Calculate position to ensure tooltip is fully visible
-    const rect = e.currentTarget.getBoundingClientRect();
+    // Calculate position based on mouse pointer
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     
@@ -356,40 +315,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const tooltipHeight = tooltip.offsetHeight;
     tooltip.style.visibility = '';
     
-    // Initial position (try to position to the right first)
-    let left = rect.right + 10;
-    let top = rect.top;
+    // Position near the mouse pointer
+    let left = e.clientX + 15; // Offset from cursor
+    let top = e.clientY + 15;
     
     // Check right edge
     if (left + tooltipWidth > viewportWidth - 10) {
-      // Try left side instead
-      left = rect.left - tooltipWidth - 10;
-      
-      // If still doesn't fit, center horizontally
-      if (left < 10) {
-        left = Math.max(10, Math.min(viewportWidth - tooltipWidth - 10, 
-                                     rect.left + (rect.width / 2) - (tooltipWidth / 2)));
-        
-        // Position above or below based on available space
-        if (rect.top > viewportHeight / 2) {
-          // More space above, position above the element
-          top = rect.top - tooltipHeight - 10;
-        } else {
-          // More space below, position below the element
-          top = rect.bottom + 10;
-        }
-      }
-    }
-    
-    // Check top edge
-    if (top < 10) {
-      top = 10;
+      left = e.clientX - tooltipWidth - 15; // Position to the left of cursor
     }
     
     // Check bottom edge
     if (top + tooltipHeight > viewportHeight - 10) {
-      top = viewportHeight - tooltipHeight - 10;
+      top = e.clientY - tooltipHeight - 15; // Position above cursor
     }
+    
+    // Ensure tooltip is not off screen
+    left = Math.max(10, Math.min(viewportWidth - tooltipWidth - 10, left));
+    top = Math.max(10, Math.min(viewportHeight - tooltipHeight - 10, top));
     
     // Apply final position
     tooltip.style.left = `${left}px`;
@@ -397,17 +339,22 @@ document.addEventListener('DOMContentLoaded', function() {
     tooltip.style.display = 'block';
   }
   
-  // Get time category based on hour
+  // Get time category based on hour with new ranges
   function getTimeCategory(timeStart) {
     const hour = parseInt(timeStart.split(':')[0]);
     const isPM = timeStart.includes('PM');
     
-    const hour24 = isPM && hour !== 12 ? hour + 12 : hour;
+    let hour24 = hour;
+    if (isPM && hour !== 12) hour24 = hour + 12;
+    if (!isPM && hour === 12) hour24 = 0;
     
-    if (hour24 < 10) return 'morning';
-    if (hour24 < 13) return 'midday';
-    if (hour24 < 17) return 'afternoon';
-    return 'evening';
+    // Morning: 4:00 AM to 11:59 AM (4-11)
+    // Afternoon: 12:00 PM to 4:59 PM (12-16)
+    // Evening: 5:00 PM to 3:59 AM (17-23, 0-3)
+    
+    if ((hour24 >= 4 && hour24 < 12)) return 'morning';
+    if (hour24 >= 12 && hour24 < 17) return 'afternoon';
+    return 'evening'; // 17-23, 0-3
   }
   
   // Convert time to minutes for sorting
