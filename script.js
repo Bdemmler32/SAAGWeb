@@ -334,19 +334,19 @@ document.addEventListener('DOMContentLoaded', function() {
       const dayName = dateParts[0].trim(); // Day name like "Saturday"
       const dateDetail = dateParts[1].trim(); // Date like "November 15"
       
-      // Create header content with day name and date
-      dayHeader.innerHTML = `<strong>${dayName}</strong><br>${dateDetail}`;
+      // Create header content with day and date on same line with comma
+      dayHeader.innerHTML = `${dayName}, ${dateDetail}`;
       
       dayHeader.style.backgroundColor = '#333';
       dayHeader.style.color = 'white';
       dayHeader.style.padding = '8px 4px';
       dayHeader.style.textAlign = 'center';
       dayHeader.style.borderRadius = '5px 5px 0 0';
-      dayHeader.style.fontWeight = 'normal';
+      dayHeader.style.fontWeight = 'bold';
       dayHeader.style.fontSize = '11px';
-      dayHeader.style.minHeight = '40px';
+      dayHeader.style.height = '32px';
       dayHeader.style.display = 'flex';
-      dayHeader.style.flexDirection = 'column';
+      dayHeader.style.alignItems = 'center';
       dayHeader.style.justifyContent = 'center';
       
       dayColumn.appendChild(dayHeader);
