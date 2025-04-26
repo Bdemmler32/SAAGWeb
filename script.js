@@ -395,9 +395,23 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add ticketed indicator if needed
         if (isTicketed) {
+          // Create a dedicated indicator div instead of using border
+          const indicator = document.createElement('div');
+          indicator.style.position = 'absolute';
+          indicator.style.right = '0';
+          indicator.style.top = '0';
+          indicator.style.bottom = '0';
+          indicator.style.width = '6px';
+          indicator.style.backgroundColor = '#4a7aff';
+          indicator.style.borderTopRightRadius = '3px';
+          indicator.style.borderBottomRightRadius = '3px';
+          
+          // Ensure the event has proper positioning
           eventEl.style.position = 'relative';
           eventEl.style.paddingRight = '8px';
-          eventEl.style.borderRight = '6px solid #4a7aff';
+          
+          // Add the indicator to the event
+          eventEl.appendChild(indicator);
         }
         
         // Event title
@@ -502,10 +516,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Use html2canvas to capture the container
     html2canvas(pdfContainer, {
-      scale: 2, // Higher scale for better quality
+      scale: 1.5, // Reduced scale for smaller file size while maintaining quality
       useCORS: true,
       logging: false,
-      width: 1100
+      width: 1100,
+      imageTimeout: 0,
+      backgroundColor: '#ffffff'
     }).then(canvas => {
       // Remove the temporary container
       document.body.removeChild(pdfContainer);
@@ -515,7 +531,8 @@ document.addEventListener('DOMContentLoaded', function() {
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'in',
-        format: 'letter'
+        format: 'letter',
+        compress: true // Enable compression to reduce file size
       });
       
       // Calculate the scaling ratio to fit the canvas to the PDF
@@ -537,9 +554,9 @@ document.addEventListener('DOMContentLoaded', function() {
       const offsetX = (11 - finalWidth) / 2;
       const offsetY = (8.5 - finalHeight) / 2;
       
-      // Add the image to the PDF
-      const imgData = canvas.toDataURL('image/png');
-      pdf.addImage(imgData, 'PNG', offsetX, offsetY, finalWidth, finalHeight);
+      // Add the image to the PDF with compression
+      const imgData = canvas.toDataURL('image/jpeg', 0.85); // Use JPEG with compression instead of PNG
+      pdf.addImage(imgData, 'JPEG', offsetX, offsetY, finalWidth, finalHeight);
       
       // Save the PDF
       pdf.save('schedule-at-a-glance.pdf');
