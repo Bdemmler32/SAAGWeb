@@ -8,21 +8,21 @@ document.addEventListener('DOMContentLoaded', function() {
   const dateInfo = document.getElementById('date-info');
   const loadingIndicator = document.getElementById('loading');
   const errorMessage = document.getElementById('errorMessage');
-  
+
   // State
   let events = [];
   let filteredEvents = [];
   let selectedDay = null;
   let days = [];
   let lastUpdated = '';
-  
+
   // Parse date string into Date object
   function parseEventDate(dateStr, year) {
     const parts = dateStr.split(', ');
     const monthDay = parts[1];
     return new Date(`${monthDay}, ${year}`);
   }
-  
+
   // Initial load
   fetchScheduleData();
   exportPdfBtn.addEventListener('click', exportToPdf);
@@ -35,13 +35,13 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   });
-  
+
   function fetchScheduleData() {
     loadingIndicator.style.display = 'block';
     noEventsMessage.style.display = 'none';
     scheduleGrid.style.display = 'none';
     errorMessage.style.display = 'none';
-    
+
     fetch('schedule-data.json')
       .then(r => { if (!r.ok) throw new Error('Network response was not ok'); return r.json(); })
       .then(data => {
@@ -66,12 +66,12 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Error fetching schedule data:', err);
       });
   }
-  
+
   function formatDate(date) {
     const d = new Date(date);
     return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
   }
-  
+
   function createDayButtons() {
     dayButtonsContainer.innerHTML = '';
     const allBtn = document.createElement('button');
@@ -85,18 +85,18 @@ document.addEventListener('DOMContentLoaded', function() {
       dayButtonsContainer.appendChild(btn);
     });
   }
-  
+
   function setActiveDay(day, btn) {
     selectedDay = day;
     dayButtonsContainer.querySelectorAll('.day-button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active'); applyFilters();
   }
-  
+
   function applyFilters() {
     filteredEvents = selectedDay ? events.filter(ev => ev.Date === selectedDay) : [...events];
     renderSchedule();
   }
-  
+
   function renderSchedule() {
     scheduleGrid.innerHTML = '';
     if (!filteredEvents.length) { noEventsMessage.style.display = 'block'; return; }
@@ -109,6 +109,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     Object.keys(byDay).forEach(day => {
       const col = document.createElement('div'); col.className = 'day-column';
+      // make each column full width of viewport
+      col.style.flex = '0 0 100%';
+      col.style.maxWidth = '100%';
       const hdr = document.createElement('div'); hdr.className = 'day-header'; hdr.textContent = day;
       const cont = document.createElement('div'); cont.className = 'day-content';
       byDay[day].forEach(ev => cont.appendChild(createEventElement(ev)));
@@ -116,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
       scheduleGrid.appendChild(col);
     });
   }
-  
+
   function createEventElement(event) {
     const isTicketed = event['Ticketed Event'] === 'TRUE';
     const el = document.createElement('div');
@@ -126,7 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
     el.addEventListener('click', e => { e.stopPropagation(); showEventTooltip(e, event); });
     return el;
   }
-  
+
   function showEventTooltip(e, event) {
     const isTicketed = event['Ticketed Event'] === 'TRUE';
     tooltip.innerHTML = `<div class='tooltip-title'>${event.Event}</div><div class='tooltip-date'>${event.Date}</div><div class='tooltip-detail'><span class='tooltip-label'>Time:</span> ${event['Time Start']} - ${event['Time End']}</div>` +
@@ -138,18 +141,21 @@ document.addEventListener('DOMContentLoaded', function() {
     if (top < 10) top = 10; if (top + th > window.innerHeight - 10) top = window.innerHeight - th - 10;
     tooltip.style.left = `${left}px`; tooltip.style.top = `${top}px`;
   }
-  
+
   // Export each day as its own portrait page
   function exportToPdf() {
     tooltip.style.display = 'none';
     const columns = Array.from(document.querySelectorAll('.day-column'));
     const tempContainer = document.createElement('div');
     tempContainer.style.background = '#fff';
+    // stack vertically for export
+    tempContainer.style.display = 'block';
+    const pagePx = 8.5 * 96; // letter width in px
     columns.forEach(col => {
       const clone = col.cloneNode(true);
-      clone.style.width = '100%';
-      clone.style.pageBreakAfter = 'always';
+      clone.style.width = `${pagePx}px`;
       clone.style.margin = '0 auto 20px';
+      clone.style.pageBreakAfter = 'always';
       tempContainer.appendChild(clone);
     });
     tempContainer.style.position = 'absolute'; tempContainer.style.left = '-9999px';
@@ -163,13 +169,13 @@ document.addEventListener('DOMContentLoaded', function() {
       pagebreak: { mode: ['css', 'legacy'] }
     }).save().then(() => { document.body.removeChild(tempContainer); });
   }
-  
+
   function getTimeCategory(time) {
     const h = parseInt(time.split(':')[0]); const pm = time.includes('PM');
     let hh = pm && h !== 12 ? h+12 : (h===12 && !pm ? 0 : h);
     return hh < 10 ? 'morning' : hh < 13 ? 'midday' : hh < 17 ? 'afternoon' : 'evening';
   }
-  
+
   function timeToMinutes(t) {
     const [h,m] = t.split(':'); const mins = parseInt(m); const pm = t.includes('PM');
     let hh = parseInt(h); if (pm && hh !== 12) hh+=12; if (!pm && hh===12) hh=0;
