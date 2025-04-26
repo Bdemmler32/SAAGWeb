@@ -278,10 +278,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const pdfContainer = originalContainer.cloneNode(true);
     
     // Set the container to a fixed width for PDF export
-    pdfContainer.style.width = '1000px';
+    pdfContainer.style.width = '1100px';
     pdfContainer.style.maxWidth = 'none';
     pdfContainer.style.margin = '0';
-    pdfContainer.style.padding = '20px';
+    pdfContainer.style.padding = '10px';
     pdfContainer.style.backgroundColor = 'white';
     
     // Remove filters container (keep only the header)
@@ -294,7 +294,8 @@ document.addEventListener('DOMContentLoaded', function() {
     scheduleGridPdf.innerHTML = '';
     scheduleGridPdf.style.display = 'grid';
     scheduleGridPdf.style.gridTemplateColumns = 'repeat(7, 1fr)';
-    scheduleGridPdf.style.gap = '10px';
+    scheduleGridPdf.style.gap = '5px';
+    scheduleGridPdf.style.marginTop = '10px';
     
     // Create columns for each day of the week
     const uniqueDays = [...new Set(events.map(event => event.Date))];
@@ -327,25 +328,39 @@ document.addEventListener('DOMContentLoaded', function() {
       // Create day header
       const dayHeader = document.createElement('div');
       dayHeader.className = 'day-header';
-      dayHeader.textContent = day.split(',')[0]; // Just the day name
+      
+      // Split the date parts
+      const dateParts = day.split(',');
+      const dayName = dateParts[0].trim(); // Day name like "Saturday"
+      const dateDetail = dateParts[1].trim(); // Date like "November 15"
+      
+      // Create header content with day name and date
+      dayHeader.innerHTML = `<strong>${dayName}</strong><br>${dateDetail}`;
+      
       dayHeader.style.backgroundColor = '#333';
       dayHeader.style.color = 'white';
-      dayHeader.style.padding = '8px';
+      dayHeader.style.padding = '8px 4px';
       dayHeader.style.textAlign = 'center';
       dayHeader.style.borderRadius = '5px 5px 0 0';
-      dayHeader.style.fontWeight = 'bold';
+      dayHeader.style.fontWeight = 'normal';
+      dayHeader.style.fontSize = '11px';
+      dayHeader.style.minHeight = '40px';
+      dayHeader.style.display = 'flex';
+      dayHeader.style.flexDirection = 'column';
+      dayHeader.style.justifyContent = 'center';
+      
       dayColumn.appendChild(dayHeader);
       
       // Create events container
       const eventsContainer = document.createElement('div');
       eventsContainer.className = 'day-events';
       eventsContainer.style.backgroundColor = 'white';
-      eventsContainer.style.padding = '5px';
+      eventsContainer.style.padding = '4px';
       eventsContainer.style.borderRadius = '0 0 5px 5px';
       eventsContainer.style.flexGrow = '1';
       eventsContainer.style.display = 'flex';
       eventsContainer.style.flexDirection = 'column';
-      eventsContainer.style.gap = '5px';
+      eventsContainer.style.gap = '3px';
       
       // Sort events by time
       dayEvents.sort((a, b) => {
@@ -359,11 +374,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const eventEl = document.createElement('div');
         eventEl.className = `event-pdf ${timeCategory}`;
-        eventEl.style.padding = '5px';
-        eventEl.style.borderRadius = '4px';
-        eventEl.style.fontSize = '10px';
+        eventEl.style.padding = '4px';
+        eventEl.style.borderRadius = '3px';
+        eventEl.style.fontSize = '8px';
         eventEl.style.position = 'relative';
-        eventEl.style.marginBottom = '3px';
+        eventEl.style.marginBottom = '2px';
+        eventEl.style.lineHeight = '1.2';
         
         // Set background color based on time category
         if (timeCategory === 'morning') {
@@ -379,7 +395,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add ticketed indicator if needed
         if (isTicketed) {
-          eventEl.style.borderRightWidth = '8px';
+          eventEl.style.borderRightWidth = '6px';
           eventEl.style.borderRightColor = '#4a7aff';
         }
         
@@ -391,7 +407,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Event time
         const timeEl = document.createElement('div');
-        timeEl.style.fontSize = '9px';
+        timeEl.style.fontSize = '8px';
+        timeEl.style.color = '#444';
         timeEl.textContent = `${event["Time Start"]} - ${event["Time End"]}`;
         
         eventEl.appendChild(titleEl);
@@ -403,6 +420,80 @@ document.addEventListener('DOMContentLoaded', function() {
       scheduleGridPdf.appendChild(dayColumn);
     });
     
+    // Add explanatory legend at the bottom if there's space
+    const legendRow = document.createElement('div');
+    legendRow.style.display = 'flex';
+    legendRow.style.justifyContent = 'center';
+    legendRow.style.gap = '15px';
+    legendRow.style.marginTop = '8px';
+    legendRow.style.fontSize = '8px';
+    
+    // Morning legend
+    const morningLegend = document.createElement('div');
+    morningLegend.style.display = 'flex';
+    morningLegend.style.alignItems = 'center';
+    const morningColor = document.createElement('span');
+    morningColor.style.width = '10px';
+    morningColor.style.height = '10px';
+    morningColor.style.backgroundColor = '#e6f4ff';
+    morningColor.style.border = '1px solid #b3d7ff';
+    morningColor.style.display = 'inline-block';
+    morningColor.style.marginRight = '3px';
+    morningLegend.appendChild(morningColor);
+    morningLegend.appendChild(document.createTextNode('Morning'));
+    
+    // Afternoon legend
+    const afternoonLegend = document.createElement('div');
+    afternoonLegend.style.display = 'flex';
+    afternoonLegend.style.alignItems = 'center';
+    const afternoonColor = document.createElement('span');
+    afternoonColor.style.width = '10px';
+    afternoonColor.style.height = '10px';
+    afternoonColor.style.backgroundColor = '#ffede6';
+    afternoonColor.style.border = '1px solid #ffcbb3';
+    afternoonColor.style.display = 'inline-block';
+    afternoonColor.style.marginRight = '3px';
+    afternoonLegend.appendChild(afternoonColor);
+    afternoonLegend.appendChild(document.createTextNode('Afternoon'));
+    
+    // Evening legend
+    const eveningLegend = document.createElement('div');
+    eveningLegend.style.display = 'flex';
+    eveningLegend.style.alignItems = 'center';
+    const eveningColor = document.createElement('span');
+    eveningColor.style.width = '10px';
+    eveningColor.style.height = '10px';
+    eveningColor.style.backgroundColor = '#f0e6ff';
+    eveningColor.style.border = '1px solid #d6b3ff';
+    eveningColor.style.display = 'inline-block';
+    eveningColor.style.marginRight = '3px';
+    eveningLegend.appendChild(eveningColor);
+    eveningLegend.appendChild(document.createTextNode('Evening'));
+    
+    // Ticketed legend
+    const ticketedLegend = document.createElement('div');
+    ticketedLegend.style.display = 'flex';
+    ticketedLegend.style.alignItems = 'center';
+    const ticketedColor = document.createElement('span');
+    ticketedColor.style.width = '10px';
+    ticketedColor.style.height = '10px';
+    ticketedColor.style.border = '1px solid #ccc';
+    ticketedColor.style.borderRightWidth = '6px';
+    ticketedColor.style.borderRightColor = '#4a7aff';
+    ticketedColor.style.display = 'inline-block';
+    ticketedColor.style.marginRight = '3px';
+    ticketedLegend.appendChild(ticketedColor);
+    ticketedLegend.appendChild(document.createTextNode('Ticketed Event'));
+    
+    // Add legends to row
+    legendRow.appendChild(morningLegend);
+    legendRow.appendChild(afternoonLegend);
+    legendRow.appendChild(eveningLegend);
+    legendRow.appendChild(ticketedLegend);
+    
+    // Add legend row to container
+    pdfContainer.appendChild(legendRow);
+    
     // Temporarily add the cloned container to the document for rendering
     pdfContainer.style.position = 'absolute';
     pdfContainer.style.left = '-9999px';
@@ -410,9 +501,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Use html2canvas to capture the container
     html2canvas(pdfContainer, {
-      scale: 1.5, // Higher scale for better quality
+      scale: 2, // Higher scale for better quality
       useCORS: true,
-      logging: false
+      logging: false,
+      width: 1100
     }).then(canvas => {
       // Remove the temporary container
       document.body.removeChild(pdfContainer);
@@ -426,8 +518,8 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       
       // Calculate the scaling ratio to fit the canvas to the PDF
-      const imgWidth = 11 - 0.5; // Landscape letter width minus margins
-      const imgHeight = 8.5 - 0.5; // Landscape letter height minus margins
+      const imgWidth = 11 - 0.4; // Landscape letter width minus margins
+      const imgHeight = 8.5 - 0.4; // Landscape letter height minus margins
       const canvasRatio = canvas.height / canvas.width;
       const pdfRatio = imgHeight / imgWidth;
       
